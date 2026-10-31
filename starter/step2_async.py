@@ -18,14 +18,30 @@ import asyncio
 from timer import print_time
 
 
-def work(n: int) -> None:
-    ...
+async def work(n: int) -> None:
+    print(f"start {n}")
+    await asyncio.sleep(1)
+    print(f"done {n}")
 
 
-def main() -> None:
-    ...
+async def main_sequential() -> None:
+    # 2а: последовательный вызов
+    for n in range(1, 11):
+        await work(n)
+
+
+async def main_concurrent() -> None:
+    # 2б: конкурентный вызов
+    coroutines = [work(n) for n in range(1, 11)]
+    await asyncio.gather(*coroutines)
 
 
 if __name__ == "__main__":
+    # Сначала запустим 2а (последовательно), потом 2б (конкурентно)
+    print("--- 2а: последовательный запуск (ожидаемое время ~10.00s) ---")
     with print_time():
-        main()
+        asyncio.run(main_sequential())
+
+    print("\n--- 2б: конкурентный запуск (ожидаемое время ~1.00s) ---")
+    with print_time():
+        asyncio.run(main_concurrent())

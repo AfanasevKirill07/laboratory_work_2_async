@@ -25,6 +25,7 @@ heavy_compute. Она синхронная и работает 1-3 секунд�
 """
 
 import asyncio
+import concurrent.futures
 
 from timer import log, print_time
 
@@ -45,17 +46,45 @@ def heavy_compute() -> int:
     return h
 
 
-async def handle_request(client: str, duration: float) -> None:
+async def handle_request_thread(client: str, duration: float) -> None:
+    """Вариант 4б: использование asyncio.to_thread"""
     log(f"{client}: запрос принят")
-    await asyncio.sleep(duration)
+    if client == "bob":
+        await asyncio.to_thread(heavy_compute)
+    else:
+        await asyncio.sleep(duration)
     log(f"{client}: ответ отправлен")
 
 
-async def main() -> None:
-    coroutines = [handle_request(client, duration) for client, duration in CLIENTS]
+async def handle_request_process(client: str, duration: float, pool: concurrent.futures.ProcessPoolExecutor) -> None:
+    """Вариант 4б: использование ProcessPoolExecutor"""
+    log(f"{client}: запрос принят")
+    loop = asyncio.get_running_loop()
+    if client == "bob":
+        await loop.run_in_executor(pool, heavy_compute)
+    else:
+        await asyncio.sleep(duration)
+    log(f"{client}: ответ отправлен")
+
+
+async def main_thread() -> None:
+    """Запуск с использованием потоков (to_thread)"""
+    coroutines = [handle_request_thread(client, duration) for client, duration in CLIENTS]
     await asyncio.gather(*coroutines)
 
 
+async def main_process() -> None:
+    """Запуск с использованием процессов (ProcessPoolExecutor)"""
+    with concurrent.futures.ProcessPoolExecutor() as pool:
+        coroutines = [handle_request_process(client, duration, pool) for client, duration in CLIENTS]
+        await asyncio.gather(*coroutines)
+
+
 if __name__ == "__main__":
+    print("--- 4б: Вариант с asyncio.to_thread ---")
     with print_time():
-        asyncio.run(main())
+        asyncio.run(main_thread())
+
+    print("\n--- 4б: Вариант с ProcessPoolExecutor ---")
+    with print_time():
+        asyncio.run(main_process())
